@@ -145,11 +145,15 @@ class GamePanel extends JPanel {
 
     private void drawTitle(Graphics graphics) {
         String title = "Snake";
+        java.awt.Font originalFont = graphics.getFont();
+        graphics.setFont(originalFont.deriveFont(48f));
+
         FontMetrics fontMetrics = graphics.getFontMetrics();
         int titleX = (getWidth() - fontMetrics.stringWidth(title)) / 2;
 
-        graphics.setColor(TEXT_COLOR);
+        graphics.setColor(SNAKE_COLOR);
         graphics.drawString(title, titleX, TITLE_Y);
+        graphics.setFont(originalFont);
     }
 
     private void drawScore(Graphics graphics, int boardX, int boardY) {
