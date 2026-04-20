@@ -47,6 +47,7 @@ class GamePanel extends JPanel {
     private GridCell food;
     private int score;
     private boolean gameOver;
+    private boolean directionChangedThisFrame;
 
     public GamePanel() {
         setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
@@ -157,8 +158,13 @@ class GamePanel extends JPanel {
     }
 
     private void updateDirection(Direction nextDirection) {
+        if (directionChangedThisFrame) {
+            return;
+        }
+
         if (!currentDirection.isOpposite(nextDirection)) {
             currentDirection = nextDirection;
+            directionChangedThisFrame = true;
         }
     }
 
@@ -187,6 +193,7 @@ class GamePanel extends JPanel {
             snake.remove(0);
         }
 
+        directionChangedThisFrame = false;
         repaint();
     }
 
@@ -229,6 +236,7 @@ class GamePanel extends JPanel {
         score = 0;
         gameOver = false;
         currentDirection = Direction.RIGHT;
+        directionChangedThisFrame = false;
         initializeSnake();
         food = spawnFood();
     }
