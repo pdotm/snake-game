@@ -4,6 +4,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
+import java.awt.Rectangle;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Random;
 
 import javax.swing.JFrame;
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -22,7 +24,7 @@ public class SnakeGame {
             GamePanel gamePanel = new GamePanel();
 
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(600, 600);
+            frame.setSize(900, 800);
             frame.setLocationRelativeTo(null);
             frame.add(gamePanel);
             frame.setVisible(true);
@@ -34,6 +36,8 @@ public class SnakeGame {
 class GamePanel extends JPanel {
     private static final int GRID_SIZE = 20;
     private static final int CELL_SIZE = 30;
+    private static final int BOARD_SIZE = GRID_SIZE * CELL_SIZE;
+    private static final int TITLE_Y = 48;
     private static final Color BACKGROUND_COLOR = Color.DARK_GRAY;
     private static final Color GRID_COLOR = new Color(85, 85, 85);
     private static final Color SNAKE_COLOR = Color.GREEN;
@@ -47,51 +51,79 @@ class GamePanel extends JPanel {
     private final List<GridCell> snake = new ArrayList<>();
     private final Timer movementTimer;
     private final Random random = new Random();
+    private final JButton startButton;
 
     private Direction currentDirection = Direction.RIGHT;
     private GridCell food;
     private int score;
     private boolean gameOver;
     private boolean directionChangedThisFrame;
+    private boolean isPlaying;
 
     public GamePanel() {
-        setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
+        setPreferredSize(new Dimension(900, 800));
         setBackground(BACKGROUND_COLOR);
         setFocusable(true);
+        setLayout(null);
+
+        startButton = new JButton("Start Game");
+        startButton.addActionListener(event -> startGame());
+        add(startButton);
 
         configureKeyControls();
         resetGame();
 
         movementTimer = new Timer(TICK_DELAY_MS, event -> advanceSnake());
-        movementTimer.start();
     }
 
     @Override
     protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
 
+        Rectangle boardBounds = getBoardBounds();
+        int boardX = boardBounds.x;
+        int boardY = boardBounds.y;
+
         graphics.setColor(BACKGROUND_COLOR);
-        graphics.fillRect(0, 0, GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE);
+        graphics.fillRect(0, 0, getWidth(), getHeight());
+
+        drawTitle(graphics);
+
+        graphics.setColor(Color.BLACK);
+        graphics.fillRoundRect(boardX - 10, boardY - 10, BOARD_SIZE + 20, BOARD_SIZE + 20, 16, 16);
 
         graphics.setColor(GRID_COLOR);
         for (int index = 0; index <= GRID_SIZE; index++) {
             int position = index * CELL_SIZE;
-            graphics.drawLine(position, 0, position, GRID_SIZE * CELL_SIZE);
-            graphics.drawLine(0, position, GRID_SIZE * CELL_SIZE, position);
+            graphics.drawLine(boardX + position, boardY, boardX + position, boardY + BOARD_SIZE);
+            graphics.drawLine(boardX, boardY + position, boardX + BOARD_SIZE, boardY + position);
         }
 
         if (food != null) {
             graphics.setColor(FOOD_COLOR);
-            graphics.fillOval(food.column * CELL_SIZE, food.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            graphics.fillOval(boardX + food.column * CELL_SIZE, boardY + food.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
 
-        drawSnake(graphics);
+        drawSnake(graphics, boardX, boardY);
 
-        drawScore(graphics);
+        drawScore(graphics, boardX, boardY);
 
         if (gameOver) {
-            drawGameOver(graphics);
+            drawGameOver(graphics, boardX, boardY);
+        } else if (!isPlaying) {
+            drawReadyMessage(graphics, boardX, boardY);
         }
+    }
+
+    @Override
+    public void doLayout() {
+        super.doLayout();
+        Rectangle boardBounds = getBoardBounds();
+        int buttonWidth = 140;
+        int buttonHeight = 36;
+        int buttonX = (getWidth() - buttonWidth) / 2;
+        int buttonY = boardBounds.y + BOARD_SIZE + 25;
+        startButton.setBounds(buttonX, buttonY, buttonWidth, buttonHeight);
     }
 
     private void initializeSnake() {
@@ -105,12 +137,27 @@ class GamePanel extends JPanel {
         snake.add(new GridCell(centerRow, centerColumn));
     }
 
-    private void drawScore(Graphics graphics) {
-        graphics.setColor(TEXT_COLOR);
-        graphics.drawString("Score: " + score, 10, 20);
+    private Rectangle getBoardBounds() {
+        int boardX = (getWidth() - BOARD_SIZE) / 2;
+        int boardY = (getHeight() - BOARD_SIZE) / 2;
+        return new Rectangle(boardX, boardY, BOARD_SIZE, BOARD_SIZE);
     }
 
-    private void drawSnake(Graphics graphics) {
+    private void drawTitle(Graphics graphics) {
+        String title = "Snake";
+        FontMetrics fontMetrics = graphics.getFontMetrics();
+        int titleX = (getWidth() - fontMetrics.stringWidth(title)) / 2;
+
+        graphics.setColor(TEXT_COLOR);
+        graphics.drawString(title, titleX, TITLE_Y);
+    }
+
+    private void drawScore(Graphics graphics, int boardX, int boardY) {
+        graphics.setColor(TEXT_COLOR);
+        graphics.drawString("Score: " + score, boardX + 10, boardY + 20);
+    }
+
+    private void drawSnake(Graphics graphics, int boardX, int boardY) {
         if (snake.isEmpty()) {
             return;
         }
@@ -120,8 +167,8 @@ class GamePanel extends JPanel {
         if (snake.size() == 1) {
             GridCell onlySegment = snake.get(0);
             graphics.fillRoundRect(
-                onlySegment.column * CELL_SIZE + 2,
-                onlySegment.row * CELL_SIZE + 2,
+                boardX + onlySegment.column * CELL_SIZE + 2,
+                boardY + onlySegment.row * CELL_SIZE + 2,
                 CELL_SIZE - 4,
                 CELL_SIZE - 4,
                 12,
@@ -132,16 +179,16 @@ class GamePanel extends JPanel {
 
         for (int index = 1; index < snake.size() - 1; index++) {
             GridCell segment = snake.get(index);
-            graphics.fillRect(segment.column * CELL_SIZE, segment.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            graphics.fillRect(boardX + segment.column * CELL_SIZE, boardY + segment.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
 
-        drawTail(graphics, snake.get(0), snake.get(1));
-        drawHead(graphics, snake.get(snake.size() - 1));
+        drawTail(graphics, snake.get(0), snake.get(1), boardX, boardY);
+        drawHead(graphics, snake.get(snake.size() - 1), boardX, boardY);
     }
 
-    private void drawTail(Graphics graphics, GridCell tail, GridCell nextSegment) {
-        int x = tail.column * CELL_SIZE;
-        int y = tail.row * CELL_SIZE;
+    private void drawTail(Graphics graphics, GridCell tail, GridCell nextSegment, int boardX, int boardY) {
+        int x = boardX + tail.column * CELL_SIZE;
+        int y = boardY + tail.row * CELL_SIZE;
         int deltaRow = tail.row - nextSegment.row;
         int deltaColumn = tail.column - nextSegment.column;
 
@@ -169,11 +216,11 @@ class GamePanel extends JPanel {
         graphics.fillPolygon(tailTip);
     }
 
-    private void drawHead(Graphics graphics, GridCell head) {
+    private void drawHead(Graphics graphics, GridCell head, int boardX, int boardY) {
         Graphics2D graphics2d = (Graphics2D) graphics.create();
 
-        int x = head.column * CELL_SIZE;
-        int y = head.row * CELL_SIZE;
+        int x = boardX + head.column * CELL_SIZE;
+        int y = boardY + head.row * CELL_SIZE;
 
         graphics2d.setColor(SNAKE_COLOR);
         graphics2d.fillRoundRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4, 14, 14);
@@ -256,13 +303,13 @@ class GamePanel extends JPanel {
         graphics2d.dispose();
     }
 
-    private void drawGameOver(Graphics graphics) {
+    private void drawGameOver(Graphics graphics, int boardX, int boardY) {
         String gameOverMessage = "Game Over";
         String scoreMessage = "Final Score: " + score;
         String resetMessage = "Press R to restart";
         FontMetrics fontMetrics = graphics.getFontMetrics();
-        int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2;
+        int centerX = boardX + BOARD_SIZE / 2;
+        int centerY = boardY + BOARD_SIZE / 2;
 
         graphics.setColor(TEXT_COLOR);
         graphics.drawString(gameOverMessage, centerX - fontMetrics.stringWidth(gameOverMessage) / 2, centerY - 20);
@@ -270,14 +317,22 @@ class GamePanel extends JPanel {
         graphics.drawString(resetMessage, centerX - fontMetrics.stringWidth(resetMessage) / 2, centerY + 30);
     }
 
+    private void drawReadyMessage(Graphics graphics, int boardX, int boardY) {
+        String readyMessage = "Click Start Game";
+        FontMetrics fontMetrics = graphics.getFontMetrics();
+        int centerX = boardX + BOARD_SIZE / 2;
+        int centerY = boardY + BOARD_SIZE / 2;
+
+        graphics.setColor(TEXT_COLOR);
+        graphics.drawString(readyMessage, centerX - fontMetrics.stringWidth(readyMessage) / 2, centerY);
+    }
+
     private void configureKeyControls() {
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent event) {
                 if (event.getKeyCode() == KeyEvent.VK_R && gameOver) {
-                    resetGame();
-                    movementTimer.start();
-                    repaint();
+                    startGame();
                     return;
                 }
 
@@ -317,7 +372,7 @@ class GamePanel extends JPanel {
     }
 
     private void advanceSnake() {
-        if (gameOver) {
+        if (!isPlaying || gameOver) {
             return;
         }
 
@@ -328,7 +383,9 @@ class GamePanel extends JPanel {
 
         if (isWallCollision(nextHead) || isSelfCollision(nextHead)) {
             gameOver = true;
+            isPlaying = false;
             movementTimer.stop();
+            startButton.setVisible(true);
             repaint();
             return;
         }
@@ -383,10 +440,20 @@ class GamePanel extends JPanel {
     private void resetGame() {
         score = 0;
         gameOver = false;
+        isPlaying = false;
         currentDirection = Direction.RIGHT;
         directionChangedThisFrame = false;
         initializeSnake();
         food = spawnFood();
+    }
+
+    private void startGame() {
+        resetGame();
+        isPlaying = true;
+        startButton.setVisible(false);
+        movementTimer.start();
+        requestFocusInWindow();
+        repaint();
     }
 
     @Override
