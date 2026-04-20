@@ -2,6 +2,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -37,6 +39,9 @@ class GamePanel extends JPanel {
     private static final Color SNAKE_COLOR = Color.GREEN;
     private static final Color FOOD_COLOR = Color.RED;
     private static final Color TEXT_COLOR = Color.WHITE;
+    private static final Color EYE_COLOR = Color.WHITE;
+    private static final Color PUPIL_COLOR = Color.BLACK;
+    private static final Color TONGUE_COLOR = new Color(255, 90, 90);
     private static final int TICK_DELAY_MS = 150;
 
     private final List<GridCell> snake = new ArrayList<>();
@@ -80,10 +85,7 @@ class GamePanel extends JPanel {
             graphics.fillOval(food.column * CELL_SIZE, food.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
 
-        graphics.setColor(SNAKE_COLOR);
-        for (GridCell segment : snake) {
-            graphics.fillRect(segment.column * CELL_SIZE, segment.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
+        drawSnake(graphics);
 
         drawScore(graphics);
 
@@ -106,6 +108,152 @@ class GamePanel extends JPanel {
     private void drawScore(Graphics graphics) {
         graphics.setColor(TEXT_COLOR);
         graphics.drawString("Score: " + score, 10, 20);
+    }
+
+    private void drawSnake(Graphics graphics) {
+        if (snake.isEmpty()) {
+            return;
+        }
+
+        graphics.setColor(SNAKE_COLOR);
+
+        if (snake.size() == 1) {
+            GridCell onlySegment = snake.get(0);
+            graphics.fillRoundRect(
+                onlySegment.column * CELL_SIZE + 2,
+                onlySegment.row * CELL_SIZE + 2,
+                CELL_SIZE - 4,
+                CELL_SIZE - 4,
+                12,
+                12
+            );
+            return;
+        }
+
+        for (int index = 1; index < snake.size() - 1; index++) {
+            GridCell segment = snake.get(index);
+            graphics.fillRect(segment.column * CELL_SIZE, segment.row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+
+        drawTail(graphics, snake.get(0), snake.get(1));
+        drawHead(graphics, snake.get(snake.size() - 1));
+    }
+
+    private void drawTail(Graphics graphics, GridCell tail, GridCell nextSegment) {
+        int x = tail.column * CELL_SIZE;
+        int y = tail.row * CELL_SIZE;
+        int deltaRow = tail.row - nextSegment.row;
+        int deltaColumn = tail.column - nextSegment.column;
+
+        graphics.setColor(SNAKE_COLOR);
+        graphics.fillRoundRect(x + 4, y + 4, CELL_SIZE - 8, CELL_SIZE - 8, 12, 12);
+
+        Polygon tailTip = new Polygon();
+        if (deltaColumn == 1) {
+            tailTip.addPoint(x + CELL_SIZE, y + CELL_SIZE / 2);
+            tailTip.addPoint(x + CELL_SIZE - 8, y + CELL_SIZE / 2 - 6);
+            tailTip.addPoint(x + CELL_SIZE - 8, y + CELL_SIZE / 2 + 6);
+        } else if (deltaColumn == -1) {
+            tailTip.addPoint(x, y + CELL_SIZE / 2);
+            tailTip.addPoint(x + 8, y + CELL_SIZE / 2 - 6);
+            tailTip.addPoint(x + 8, y + CELL_SIZE / 2 + 6);
+        } else if (deltaRow == 1) {
+            tailTip.addPoint(x + CELL_SIZE / 2, y + CELL_SIZE);
+            tailTip.addPoint(x + CELL_SIZE / 2 - 6, y + CELL_SIZE - 8);
+            tailTip.addPoint(x + CELL_SIZE / 2 + 6, y + CELL_SIZE - 8);
+        } else {
+            tailTip.addPoint(x + CELL_SIZE / 2, y);
+            tailTip.addPoint(x + CELL_SIZE / 2 - 6, y + 8);
+            tailTip.addPoint(x + CELL_SIZE / 2 + 6, y + 8);
+        }
+        graphics.fillPolygon(tailTip);
+    }
+
+    private void drawHead(Graphics graphics, GridCell head) {
+        Graphics2D graphics2d = (Graphics2D) graphics.create();
+
+        int x = head.column * CELL_SIZE;
+        int y = head.row * CELL_SIZE;
+
+        graphics2d.setColor(SNAKE_COLOR);
+        graphics2d.fillRoundRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4, 14, 14);
+
+        int eyeSize = 5;
+        int pupilSize = 2;
+
+        int firstEyeX = x + 7;
+        int firstEyeY = y + 7;
+        int secondEyeX = x + 18;
+        int secondEyeY = y + 7;
+        int tongueBaseX = x + CELL_SIZE / 2;
+        int tongueBaseY = y + CELL_SIZE / 2;
+        int tongueTipX = tongueBaseX;
+        int tongueTipY = tongueBaseY;
+
+        switch (currentDirection) {
+            case UP:
+                firstEyeX = x + 8;
+                firstEyeY = y + 6;
+                secondEyeX = x + 17;
+                secondEyeY = y + 6;
+                tongueBaseX = x + CELL_SIZE / 2;
+                tongueBaseY = y + 4;
+                tongueTipX = tongueBaseX;
+                tongueTipY = y - 6;
+                break;
+            case DOWN:
+                firstEyeX = x + 8;
+                firstEyeY = y + 19;
+                secondEyeX = x + 17;
+                secondEyeY = y + 19;
+                tongueBaseX = x + CELL_SIZE / 2;
+                tongueBaseY = y + CELL_SIZE - 4;
+                tongueTipX = tongueBaseX;
+                tongueTipY = y + CELL_SIZE + 6;
+                break;
+            case LEFT:
+                firstEyeX = x + 6;
+                firstEyeY = y + 8;
+                secondEyeX = x + 6;
+                secondEyeY = y + 17;
+                tongueBaseX = x + 4;
+                tongueBaseY = y + CELL_SIZE / 2;
+                tongueTipX = x - 6;
+                tongueTipY = tongueBaseY;
+                break;
+            case RIGHT:
+                firstEyeX = x + 19;
+                firstEyeY = y + 8;
+                secondEyeX = x + 19;
+                secondEyeY = y + 17;
+                tongueBaseX = x + CELL_SIZE - 4;
+                tongueBaseY = y + CELL_SIZE / 2;
+                tongueTipX = x + CELL_SIZE + 6;
+                tongueTipY = tongueBaseY;
+                break;
+            default:
+                break;
+        }
+
+        graphics2d.setColor(EYE_COLOR);
+        graphics2d.fillOval(firstEyeX, firstEyeY, eyeSize, eyeSize);
+        graphics2d.fillOval(secondEyeX, secondEyeY, eyeSize, eyeSize);
+
+        graphics2d.setColor(PUPIL_COLOR);
+        graphics2d.fillOval(firstEyeX + 1, firstEyeY + 1, pupilSize, pupilSize);
+        graphics2d.fillOval(secondEyeX + 1, secondEyeY + 1, pupilSize, pupilSize);
+
+        graphics2d.setColor(TONGUE_COLOR);
+        graphics2d.drawLine(tongueBaseX, tongueBaseY, tongueTipX, tongueTipY);
+        if (currentDirection == Direction.UP || currentDirection == Direction.DOWN) {
+            graphics2d.drawLine(tongueTipX, tongueTipY, tongueTipX - 3, tongueTipY + (currentDirection == Direction.UP ? -3 : 3));
+            graphics2d.drawLine(tongueTipX, tongueTipY, tongueTipX + 3, tongueTipY + (currentDirection == Direction.UP ? -3 : 3));
+        } else {
+            graphics2d.drawLine(tongueTipX, tongueTipY, tongueTipX + (currentDirection == Direction.LEFT ? -3 : 3), tongueTipY - 3);
+            graphics2d.drawLine(tongueTipX, tongueTipY, tongueTipX + (currentDirection == Direction.LEFT ? -3 : 3), tongueTipY + 3);
+        }
+
+        graphics2d.dispose();
     }
 
     private void drawGameOver(Graphics graphics) {
