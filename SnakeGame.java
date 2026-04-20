@@ -56,7 +56,9 @@ class GamePanel extends JPanel {
     private Direction currentDirection = Direction.RIGHT;
     private GridCell food;
     private int score;
+    private int highScore;
     private boolean gameOver;
+    private boolean newHighScore;
     private boolean directionChangedThisFrame;
     private boolean isPlaying;
 
@@ -158,6 +160,7 @@ class GamePanel extends JPanel {
 
     private void drawScore(Graphics graphics, int boardX, int boardY) {
         graphics.setColor(TEXT_COLOR);
+        graphics.drawString("High Score: " + highScore, boardX + 10, boardY - 30);
         graphics.drawString("Score: " + score, boardX + 10, boardY + 20);
     }
 
@@ -315,10 +318,19 @@ class GamePanel extends JPanel {
         int centerX = boardX + BOARD_SIZE / 2;
         int centerY = boardY + BOARD_SIZE / 2;
 
+        int lineHeight = fontMetrics.getHeight() + 4;
+        int topY = newHighScore ? centerY - lineHeight * 2 : centerY - 20;
+
         graphics.setColor(TEXT_COLOR);
-        graphics.drawString(gameOverMessage, centerX - fontMetrics.stringWidth(gameOverMessage) / 2, centerY - 20);
-        graphics.drawString(scoreMessage, centerX - fontMetrics.stringWidth(scoreMessage) / 2, centerY + 5);
-        graphics.drawString(resetMessage, centerX - fontMetrics.stringWidth(resetMessage) / 2, centerY + 30);
+        graphics.drawString(gameOverMessage, centerX - fontMetrics.stringWidth(gameOverMessage) / 2, topY);
+        if (newHighScore) {
+            graphics.setColor(Color.YELLOW);
+            String newHighScoreMessage = "NEW HIGH SCORE!";
+            graphics.drawString(newHighScoreMessage, centerX - fontMetrics.stringWidth(newHighScoreMessage) / 2, topY + lineHeight);
+            graphics.setColor(TEXT_COLOR);
+        }
+        graphics.drawString(scoreMessage, centerX - fontMetrics.stringWidth(scoreMessage) / 2, topY + lineHeight * (newHighScore ? 2 : 1));
+        graphics.drawString(resetMessage, centerX - fontMetrics.stringWidth(resetMessage) / 2, topY + lineHeight * (newHighScore ? 3 : 2));
     }
 
     private void drawReadyMessage(Graphics graphics, int boardX, int boardY) {
@@ -388,6 +400,10 @@ class GamePanel extends JPanel {
         if (isWallCollision(nextHead) || isSelfCollision(nextHead)) {
             gameOver = true;
             isPlaying = false;
+            if (score > highScore) {
+                highScore = score;
+                newHighScore = true;
+            }
             movementTimer.stop();
             startButton.setVisible(true);
             repaint();
@@ -444,6 +460,7 @@ class GamePanel extends JPanel {
     private void resetGame() {
         score = 0;
         gameOver = false;
+        newHighScore = false;
         isPlaying = false;
         currentDirection = Direction.RIGHT;
         directionChangedThisFrame = false;
